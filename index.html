@@ -36,13 +36,101 @@
             background-color: var(--background-color);
         }
 
+        /* --- AUTH SCREEN STYL (Nový) --- */
+        #auth-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 20; /* Nad particles */
+            /* Mírný overlay a přechod pro zobrazení/skrytí */
+            background-color: rgba(18, 18, 18, 0.95);
+            transition: opacity 0.5s ease-in-out, visibility 0.5s;
+        }
+
+        #auth-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .auth-frame {
+            background-color: var(--card-color);
+            padding: 40px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            max-width: 350px;
+            width: 90%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .auth-frame h2 {
+            margin-top: 0;
+            color: var(--primary-color);
+            font-size: 1.5em;
+        }
+
+        #pass-input {
+            width: 100%;
+            padding: 12px 15px;
+            margin: 15px 0;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            background-color: #2c2c2c;
+            color: var(--text-color);
+            box-sizing: border-box;
+            font-size: 1em;
+            text-align: center;
+        }
+
+        #auth-button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            background-color: var(--primary-color);
+            color: var(--text-color);
+            font-weight: 600;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        #auth-button:hover {
+            background-color: #4a80e6;
+        }
+        
+        #error-message {
+            color: #ff4d4d;
+            margin-top: 10px;
+            min-height: 20px;
+            font-size: 0.9em;
+        }
+        
+        /* --- Hlavní kontejner je na začátku skrytý --- */
         .container {
             position: relative;
             z-index: 10;
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
+            opacity: 0;
+            display: none; /* Skryje obsah před autentikací */
+            transition: opacity 0.5s ease-in-out;
         }
+        
+        /* Třída pro zobrazení po úspěšné autentikaci */
+        .container.visible {
+            display: block;
+            opacity: 1;
+        }
+        /* --- Konec změn pro autentikaci --- */
+
+        /* Původní styly */
 
         /* --- HLAVIČKA --- */
         header {
@@ -147,8 +235,15 @@
 
     <div id="particles-js"></div>
 
-    <div class="container">
-        <header>
+    <div id="auth-screen">
+        <div class="auth-frame">
+            <h2>Vyžadován tajný kód 🤫</h2>
+            <input type="password" id="pass-input" placeholder="Zadejte kód">
+            <button id="auth-button">Zadejte</button>
+            <div id="error-message"></div>
+        </div>
+    </div>
+    <div class="container" id="main-content"> <header>
             <div class="search-container">
                 <input type="text" id="search-input" placeholder="Vyhledat kód nebo význam...">
             </div>
@@ -183,13 +278,22 @@
             "retina_detect": true
         });
 
-        // --- JavaScript pro správu dat a vyhledávání ---
+        // --- JavaScript pro autentikaci, správu dat a vyhledávání ---
         document.addEventListener('DOMContentLoaded', () => {
             const wordsContainer = document.getElementById('words-container');
             const searchInput = document.getElementById('search-input');
+            
+            // Elementy autentizace
+            const authScreen = document.getElementById('auth-screen');
+            const passInput = document.getElementById('pass-input');
+            const authButton = document.getElementById('auth-button');
+            const errorMessage = document.getElementById('error-message');
+            const mainContent = document.getElementById('main-content'); // Hlavní obsah slovníku
+            
+            // Správný kód
+            const CORRECT_CODE = "Nasse Momenti"; 
 
-            // TENTO SEZNAM JE JEDINÝM ZDROJEM PRAVDY. NENÍ NAPOJEN NA LOCAL STORAGE.
-            // PŘIDEJTE NEBO UPRAVTE KÓDY POUZE ZDE:
+            // TENTO SEZNAM JE JEDINÝM ZDROJEM PRAVDY.
             const broCodes = [
                 { word: "Kuřecí pařát", meaning: "Potřebuji pomoc" },
                 { word: "Sabina paradox", meaning: "Mluvení do zdi" },
@@ -207,6 +311,34 @@
                 // KÓDY MUSÍ BÝT VE FORMÁTU { word: "Slovo", meaning: "Význam" }
             ];
             // Konec datového modelu.
+
+            // --- 1. FUNKCE AUTENTIKACE ---
+            const authenticate = () => {
+                const enteredCode = passInput.value.trim();
+                
+                if (enteredCode === CORRECT_CODE) {
+                    // Správný kód: Zobrazí obsah a skryje autentizační obrazovku
+                    errorMessage.textContent = '';
+                    authScreen.classList.add('hidden');
+                    mainContent.classList.add('visible');
+                    renderWords(); // Vykreslí kódy po autentikaci
+                } else {
+                    // Špatný kód
+                    errorMessage.textContent = 'Nejspíš tu němáš co dělat NUBÍKU 😶‍🌫️';
+                    passInput.value = '';
+                }
+            };
+            
+            // Naslouchání na tlačítko Zadejte
+            authButton.addEventListener('click', authenticate);
+            
+            // Naslouchání na Enter v poli pro heslo
+            passInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    authenticate();
+                }
+            });
+
 
             // --- 2. VYKRESLENÍ KARET ---
             const renderWords = (filteredCodes = broCodes) => {
@@ -230,23 +362,16 @@
                 const filteredCodes = broCodes.filter(item => {
                     // Hledání shody ve slově NEBO významu
                     return normalize(item.word).includes(searchTerm) || 
-                           normalize(item.meaning).includes(searchTerm);
+                               normalize(item.meaning).includes(searchTerm);
                 });
 
                 renderWords(filteredCodes);
             });
-
-            // Vykreslení při načtení stránky
-            renderWords();
+            
+            // Při načtení stránky se NIC nevykreslí, dokud není zadán kód.
+            // Původní renderWords() je přesunuto do funkce authenticate().
         });
     </script>
 </body>
 
 </html>
-
-
-
-
-
-
-
